@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>X-ray Image Classification</title>
+</head>
+<body>
+    <h1>Upload Chest X-ray Image for Diagnosis</h1>
+    <form action="/predict/" method="post" enctype="multipart/form-data">
+        <input type="file" name="file" accept="image/*" required>
+        <button type="submit">Upload and Predict</button>
+    </form>
+    <h2>Prediction Result:</h2>
+    <p id="result"></p>
+
+    <script>
+        const form = document.querySelector("form");
+    form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const resultElement = document.getElementById("result");
+        resultElement.innerText = "Processing...";
+
+        try {
+            const formData = new FormData(form);
+            const response = await fetch("/predict/", {
+                method: "POST",
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || "Prediction failed");
+            }
+
+            const result = await response.json();
+            resultElement.innerText = `Prediction: ${result.prediction}`;
+        } catch (error) {
+            resultElement.innerText = `Error: ${error.message}`;
+        }
+    });
+    </script>
+</body>
+</html>
