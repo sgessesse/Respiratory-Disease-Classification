@@ -2,19 +2,6 @@
 
 This project focuses on classifying chest X-ray images into five categories: **COVID-19**, **Pneumonia**, **Tuberculosis**, **Lung Opacity**, and **Normal**. The classification is performed using a deep learning model based on **ResNet-18**, trained via transfer learning. The project includes both the training notebooks and a web application for real-time predictions.
 
-## Web Application
-
-The web application is deployed online and can be accessed at:  
-👉 [http://x-ray-image-classification-env-2.eba-pzm9ghh9.us-east-2.elasticbeanstalk.com/](http://x-ray-image-classification-env-2.eba-pzm9ghh9.us-east-2.elasticbeanstalk.com/)
-
-### How to Use the Web App
-1. Visit the web app link above.
-2. Upload a chest X-ray image using the file upload button.
-3. Click **"Upload and Predict"** to get the classification result.
-4. The predicted class (e.g., COVID-19, Normal, etc.) will be displayed below the button.
-
-**Note**: The web app may not be as accurate as the evaluation suggests due to differences in images coming from different X-ray machines. For best results, use images similar to those in the training dataset.
-
 ---
 
 ## Project Structure
@@ -78,6 +65,7 @@ cd Respiratory_Disease_Classification
 pip install -r requirements.txt
 
 3. Download the trained model (my_trained_model.pth) and place it in the model folder.
+
 4. Run the FastAPI app:
 
 uvicorn main:app --reload
@@ -116,7 +104,7 @@ This project is licensed under the MIT License.
 - **Dataset**: Basu et al. (2021) for providing the Chest X-Ray Dataset.
 - **FastAPI**:  For the web framework.
 - **PyTorch**: For the deep learning framework.
-- **AWS Elastic Beanstalk:**: For hosting the web app.
+- **Kaiming He, et al.:**: for their work on the ResNet architecture.
 
 ---
 
