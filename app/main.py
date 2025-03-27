@@ -1,11 +1,13 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from predict import Predictor
+from predict import Predictor # Assuming Predictor is in app/predict.py
 import torch
-from torchvision.models import resnet18
+# from torchvision.models import resnet18 # Old model
+from torchvision.models import convnext_tiny # New model
 import torch.nn as nn
 import os
+import io # Added for in-memory processing
 import logging
 import traceback
 from PIL import Image
@@ -21,33 +23,39 @@ app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Load the model
-def load_model(model_path):
+def load_model(model_path, num_classes=5): # Added num_classes
     """
-    Load the trained ResNet-18 model from the specified path.
+    Load the trained ConvNeXt-Tiny model from the specified path.
 
     Args:
         model_path (str): Path to the saved model file.
 
     Returns:
-        model (nn.Module): Loaded and configured ResNet-18 model.
+        model (nn.Module): Loaded and configured ConvNeXt-Tiny model.
 
     Raises:
         RuntimeError: If the model fails to load.
     """
     try:
-        # Initialize a ResNet-18 model with no pretrained weights
-        model = resnet18(weights=None)
-        num_ftrs = model.fc.in_features
-        
-        # Modify the final fully connected layer to output 5 classes
-        model.fc = nn.Sequential(
-            nn.Dropout(0.5),
-            nn.Linear(num_ftrs, 5)  # 5 classes
+        # Initialize a ConvNeXt-Tiny model with no pretrained weights
+        model = convnext_tiny(weights=None)
+
+        # Get the original classifier sequence to find input features
+        original_classifier = model.classifier
+        num_ftrs = original_classifier[-1].in_features
+
+        # Rebuild the classifier sequence for the correct number of classes
+        model.classifier = nn.Sequential(
+            *original_classifier[:-1],  # Unpack all layers except the last one
+            nn.Dropout(p=0.5),
+            nn.Linear(num_ftrs, num_classes)
         )
-        
+
         # Load the model's state dictionary from the file
-        model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
-        model.to('cpu') # Move the model to CPU
+        # Ensure the model is loaded onto the CPU for broader compatibility
+        device = torch.device('cpu')
+        model.load_state_dict(torch.load(model_path, map_location=device))
+        model.to(device) # Move the model to CPU
         model.eval() # Set the model to evaluation mode
         return model
     except Exception as e:
@@ -97,31 +105,39 @@ async def predict(file: UploadFile = File(...)):
     """
     # Check if the uploaded file is an image
     if not file.content_type.startswith("image/"):
+        logger.warning(f"Invalid file type uploaded: {file.content_type}")
         raise HTTPException(status_code=400, detail="File must be an image")
 
-    # Temporary file path to save the uploaded image
-    temp_image_path = f"/tmp/temp_{file.filename}"
     try:
-        # Save the uploaded file to a temporary location
-        with open(temp_image_path, "wb") as buffer:
-            buffer.write(await file.read())
+        # Read image contents into memory
+        contents = await file.read()
+        image_stream = io.BytesIO(contents)
 
-        # Validate the image file
+        # Validate the image file using PIL directly from memory
         try:
-            Image.open(temp_image_path).verify()
-        except Exception as e:
-            raise HTTPException(status_code=400, detail="Invalid image file")
+            img = Image.open(image_stream)
+            img.verify() # Verify image integrity
+            # Re-open after verify
+            image_stream.seek(0)
+            img = Image.open(image_stream)
+            img.load() # Load image data
+        except Exception as img_err:
+            logger.error(f"Invalid image file uploaded: {img_err}")
+            raise HTTPException(status_code=400, detail=f"Invalid image file: {img_err}")
 
-        # Perform prediction using the predictor
-        prediction = predictor.predict(temp_image_path)
+        # Perform prediction using the predictor, passing the PIL image object
+        # Modify predictor.predict to accept a PIL image object instead of a path
+        prediction = predictor.predict(img) # Pass PIL image object
+        logger.info(f"Prediction successful: {prediction}")
         return {"prediction": prediction}
+
+    except HTTPException as http_err:
+        # Re-raise HTTP exceptions directly
+        raise http_err
     except Exception as e:
         logger.error(f"Prediction error: {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        # Clean up the temporary file
-        if os.path.exists(temp_image_path):
-            os.remove(temp_image_path)
+        raise HTTPException(status_code=500, detail=f"Internal server error during prediction: {e}")
+    # No finally block needed as we are not creating temp files
 
 # Serve the HTML frontend
 @app.get("/", response_class=HTMLResponse)

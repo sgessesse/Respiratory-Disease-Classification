@@ -3,42 +3,181 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>X-ray Image Classification</title>
+    <title>Chest X-ray Classification</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #0056b3;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        /* Style the file input */
+        input[type="file"] {
+            border: 1px solid #ccc;
+            display: inline-block;
+            padding: 6px 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            background-color: #eee;
+        }
+        /* Style the button */
+        button[type="submit"] {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+        button[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+        button[type="submit"]:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .result-area {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #e9ecef;
+            min-height: 50px; /* Ensure space for messages */
+            text-align: center;
+        }
+        .result-area h2 {
+            margin-top: 0;
+            color: #495057;
+        }
+        #status {
+            font-style: italic;
+            color: #6c757d;
+        }
+        #prediction {
+            font-weight: bold;
+            font-size: 1.1em;
+            color: #17a2b8;
+        }
+        #error {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .disclaimer {
+            margin-top: 30px;
+            padding: 10px;
+            background-color: #fff3cd;
+            border: 1px solid #ffeeba;
+            border-radius: 4px;
+            color: #856404;
+            font-size: 0.9em;
+            text-align: center;
+        }
+    </style>
 </head>
 <body>
-    <h1>Upload Chest X-ray Image for Diagnosis</h1>
-    <form action="/predict/" method="post" enctype="multipart/form-data">
-        <input type="file" name="file" accept="image/*" required>
-        <button type="submit">Upload and Predict</button>
-    </form>
-    <h2>Prediction Result:</h2>
-    <p id="result"></p>
+    <div class="container">
+        <h1>Upload Chest X-ray Image for Diagnosis</h1>
+
+        <form id="upload-form">
+            <input type="file" name="file" id="file-input" accept="image/*" required>
+            <button type="submit" id="submit-button">Upload and Predict</button>
+        </form>
+
+        <div class="result-area">
+            <h2>Prediction Result:</h2>
+            <div id="status">Please upload an image.</div>
+            <div id="prediction"></div>
+            <div id="error"></div>
+        </div>
+
+        <div class="disclaimer">
+            <strong>Disclaimer:</strong> This prediction is experimental and for informational purposes only. It is not a substitute for professional medical diagnosis. Please consult a qualified radiologist or healthcare provider for any health concerns.
+        </div>
+    </div>
 
     <script>
-        const form = document.querySelector("form");
-    form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const resultElement = document.getElementById("result");
-        resultElement.innerText = "Processing...";
+        const form = document.getElementById("upload-form");
+        const fileInput = document.getElementById("file-input");
+        const submitButton = document.getElementById("submit-button");
+        const statusElement = document.getElementById("status");
+        const predictionElement = document.getElementById("prediction");
+        const errorElement = document.getElementById("error");
 
-        try {
-            const formData = new FormData(form);
-            const response = await fetch("/predict/", {
-                method: "POST",
-                body: formData,
-            });
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
 
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.detail || "Prediction failed");
+            // Clear previous results and errors
+            statusElement.innerText = "Processing...";
+            predictionElement.innerText = "";
+            errorElement.innerText = "";
+            submitButton.disabled = true; // Disable button
+
+            try {
+                if (!fileInput.files || fileInput.files.length === 0) {
+                    throw new Error("Please select a file to upload.");
+                }
+
+                const formData = new FormData();
+                formData.append("file", fileInput.files[0]); // Use the file from input
+
+                const response = await fetch("/predict/", { // Ensure endpoint matches FastAPI
+                    method: "POST",
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    let errorMsg = "Prediction failed.";
+                    try {
+                        const errorData = await response.json();
+                        errorMsg = errorData.detail || `Server error: ${response.status}`;
+                    } catch (jsonError) {
+                        // Handle cases where the error response is not JSON
+                        errorMsg = `Server error: ${response.status}`;
+                    }
+                    throw new Error(errorMsg);
+                }
+
+                const result = await response.json();
+                statusElement.innerText = "Prediction complete.";
+                predictionElement.innerText = `Prediction: ${result.prediction}`;
+
+            } catch (error) {
+                statusElement.innerText = "An error occurred.";
+                errorElement.innerText = `Error: ${error.message}`;
+            } finally {
+                submitButton.disabled = false; // Re-enable button
             }
+        });
 
-            const result = await response.json();
-            resultElement.innerText = `Prediction: ${result.prediction}`;
-        } catch (error) {
-            resultElement.innerText = `Error: ${error.message}`;
-        }
-    });
+        // Optional: Clear status when a new file is selected
+        fileInput.addEventListener("change", () => {
+             statusElement.innerText = "Ready to upload.";
+             predictionElement.innerText = "";
+             errorElement.innerText = "";
+        });
     </script>
 </body>
 </html>

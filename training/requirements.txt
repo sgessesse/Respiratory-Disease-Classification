@@ -1,0 +1,17 @@
+# Requirements for running the training pipeline (includes app dependencies)
+
+# Core App Dependencies
+fastapi==0.95.2
+uvicorn==0.22.0
+torch==2.0.1
+torchvision==0.15.2
+Pillow==9.5.0
+python-multipart==0.0.6
+numpy<2
+
+# Additional Training/Evaluation Dependencies
+opencv-python # For CLAHE in preprocessing
+scikit-learn # For evaluation metrics
+pandas # For saving metrics CSV
+matplotlib # For plotting confusion matrix
+seaborn # For plotting confusion matrix

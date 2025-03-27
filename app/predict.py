@@ -14,44 +14,53 @@ class Predictor:
             model (nn.Module): The trained model to use for predictions.
         """
         self.model = model
+        self.device = next(model.parameters()).device # Get device model is on (likely CPU)
 
-        # Define the image transformation pipeline
+        # Use the mean and std calculated from the training dataset
+        train_mean = [0.5135, 0.5131, 0.5120]
+        train_std = [0.2438, 0.2436, 0.2436]
+
+        # Define the image transformation pipeline - MUST match validation/test transform
         self.transform = transforms.Compose([
-            transforms.Resize((224, 224)), # Resize the image to 224x224 pixels
-            transforms.Grayscale(num_output_channels=3),  # Convert grayscale to 3-channel RGB
+            transforms.Resize((224, 224), antialias=True), # Resize with antialias
+            # No Grayscale needed if input image is converted to RGB beforehand
             transforms.ToTensor(), # Convert the image to a PyTorch tensor
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]) # Normalize the image
+            transforms.Normalize(mean=train_mean, std=train_std) # Normalize with training stats
         ])
+        # Define class names
+        self.classes = ["COVID-19", "Lung-Opacity", "Normal", "Viral Pneumonia", "Tuberculosis"]
 
-    def preprocess_image(self, img_path):
+
+    def preprocess_image(self, image: Image.Image):
         """
-        Preprocess the image for model input.
+        Preprocess the PIL image for model input.
 
         Args:
-            img_path (str): Path to the image file.
+            image (PIL.Image.Image): Input PIL image.
 
         Returns:
             torch.Tensor: Preprocessed image tensor.
         """
-        image = Image.open(img_path) # Open the image file
-        image = self.transform(image).unsqueeze(0) # Apply transformations and add batch dimension
-        return image
+        # Apply transformations and add batch dimension
+        # Ensure image is RGB before transform
+        image = image.convert('RGB')
+        tensor = self.transform(image).unsqueeze(0)
+        return tensor
 
-    def predict(self, img_path):
+    def predict(self, image: Image.Image):
         """
-        Predict the class of the given image.
+        Predict the class of the given PIL image.
 
         Args:
-            img_path (str): Path to the image file.
+            image (PIL.Image.Image): Input PIL image.
 
         Returns:
             str: Predicted class label.
         """
-        processed_img = self.preprocess_image(img_path).to('cpu') # Preprocess and move to CPU
+        processed_img = self.preprocess_image(image).to(self.device) # Preprocess and move to model's device
         with torch.no_grad():
             outputs = self.model(processed_img) # Perform the forward pass
             _, predicted = torch.max(outputs, 1) # Get the predicted class index
-        
+
         # Map the predicted index to the corresponding class label
-        classes = ["COVID-19", "Lung-Opacity", "Normal", "Viral Pneumonia", "Tuberculosis"]
-        return classes[predicted.item()]
+        return self.classes[predicted.item()]
