@@ -39,6 +39,9 @@ The project is divided into two main parts:
 - `requirements.txt`: Dependencies required *only* for running the prediction app.
 - `Dockerfile`: Configuration for building the Docker image for deployment.
 
+### EDA (`EDA/`)
+- `EDA_Images.ipynb`: Jupyter Notebook containing Exploratory Data Analysis (EDA) performed on the input chest X-ray images. This includes visualizations and analysis of image characteristics and class distributions.
+
 ---
 
 ## Dataset
