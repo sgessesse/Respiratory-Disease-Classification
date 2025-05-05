@@ -4,16 +4,6 @@ This project focuses on classifying chest X-ray images into five categories: **C
 
 ---
 
-## Live Demo
-
-A live demo of the deployed application is available at:
-
-👉 [https://d3rh0b7i52zqpl.cloudfront.net/](https://d3rh0b7i52zqpl.cloudfront.net/)
-
-*(Note: This demo runs the inference application.)*
-
----
-
 ## Project Structure
 
 The project is divided into two main parts:
@@ -105,12 +95,6 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
    *(Note: The Dockerfile uses port 80, but running locally often uses 8000)*
 
 5. Open your browser and navigate to `http://127.0.0.1:8000/` to access the web app.
-
----
-
-## Deployment
-
-The web app is deployed on AWS Elastic Beanstalk using Docker. The Dockerfile and deployment configuration files are included in the app folder.
 
 ---
 
